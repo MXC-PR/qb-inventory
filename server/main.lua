@@ -501,6 +501,53 @@ RegisterNetEvent('qb-inventory:server:SetInventoryData', function(fromInventory,
     local fromItem = getItem(fromInventory, src, fromSlot)
     local toItem = getItem(toInventory, src, toSlot)
 
+    if OnSwapItems then
+        for k, v in pairs(OnSwapItems) do
+            local action = nil
+
+            if toItem and fromItem.name == toItem.name then
+                action = "stack"
+            elseif not toItem and toAmount < fromAmount then
+                action = "move"
+            else
+                if toItem then
+                    action = "swap"
+                else
+                    action = "move"
+                end
+            end
+
+            local status, ret = pcall(v, {
+                source = src,
+                action = action,
+
+                fromInventory = fromInventory == "player" and src or fromInventory,
+                toInventory = toInventory == "player" and src or toInventory,
+
+                fromType = fromItem.type,
+                toType = toItem and toItem.type or toSlot,
+
+                fromSlot = fromItem,
+                toSlot = toItem,
+                count = toAmount
+            })
+            
+            if status then
+                if ret == false then
+                    if toInventory == "player" then
+                        Inventories[fromInventory].isOpen = false
+                        OpenInventory(source, fromInventory)
+                    else
+                        Inventories[toInventory].isOpen = false
+                        OpenInventory(source, toInventory)
+                    end
+
+                    return
+                end
+            end
+        end
+    end
+    
     if fromItem then
         if not toItem and toAmount > fromItem.amount then return end
         if fromInventory == 'player' and toInventory ~= 'player' then checkWeapon(src, fromItem) end

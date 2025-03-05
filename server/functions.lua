@@ -867,3 +867,98 @@ function GetInventory(identifier)
 end
 
 exports('GetInventory', GetInventory)
+
+function GetInventoryInfo(identifier)
+    if type(identifier) ~= "string" then
+        error("GetInventoryInfo: identifier must be a string")
+        return
+    end
+
+    local id, owner = identifier:match("(.+):(.+)") or (identifier)
+    local inventory = Inventories[id]
+
+    if owner then
+        if inventory.owner == true or inventory.owner == owner then
+            return inventory
+        end
+    else
+        return inventory
+    end
+
+    return nil
+end
+exports("GetInventoryInfo", GetInventoryInfo)
+
+function RegisterOnSwapItems(cb)
+    if not OnSwapItems then
+        OnSwapItems = {}
+    end
+
+    table.insert(OnSwapItems, cb)
+    return #OnSwapItems
+end
+exports("RegisterOnSwapItems", RegisterOnSwapItems)
+
+function RegisterInventory(identifier, data)
+    local inventory = Inventories[identifier]
+    
+    if not inventory then 
+        inventory = InitializeInventory(identifier, data)
+    end
+            
+    inventory.maxweight = (data and data.maxweight) or (inventory and inventory.maxweight) or Config.StashSize.maxweight
+    inventory.slots = (data and data.slots) or (inventory and inventory.slots) or Config.StashSize.slots
+    inventory.label = (data and data.label) or (inventory and inventory.label) or identifier
+    inventory.owner = (data and data.owner) or (inventory and inventory.owner) or nil
+
+    return inventory
+end
+exports("RegisterInventory", RegisterInventory)
+
+function OpenInventoryWithOwner(source, identifier, owner)
+    local player = QBCore.Functions.GetPlayer(source)
+    if not player then return end
+
+    if type(identifier) ~= "string" then
+        error("OpenInventoryWithOwner: identifier must be a string")
+        return
+    end
+
+    -- Split identifier into id and owner
+    if identifier:find(":") then
+        identifier, owner = identifier:match("(.+):(.+)")
+    end
+
+    local inventory = GetInventory(identifier)
+    if not inventory then
+        return
+    end
+
+    local invId = ""
+
+    if inventory.owner then
+        -- true = every player has its own inventory
+        if inventory.owner == true then
+            owner = player.PlayerData.citizenid
+        else
+            -- owner = the owner of the inventory
+            if inventory.owner ~= owner then
+                return
+            end
+        end
+    end
+
+    if owner then
+        invId = identifier .. ':' .. owner
+        
+        -- Re-register the inventory to be sure that the inventory exist and the owner is correct 
+        local _inventory = table.clone(inventory)
+        _inventory.owner = owner
+        RegisterInventory(invId, _inventory)
+    else
+        invId = identifier
+    end
+
+    OpenInventory(source, invId)
+end
+exports("OpenInventoryWithOwner", OpenInventoryWithOwner)
