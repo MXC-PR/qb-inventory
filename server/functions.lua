@@ -929,9 +929,18 @@ function OpenInventoryWithOwner(source, identifier, owner)
         identifier, owner = identifier:match("(.+):(.+)")
     end
 
-    local inventory = GetInventory(identifier)
+    local inventory = GetInventory(identifier..":"..owner)
     if not inventory then
-        return
+        local base = GetInventory(identifier)
+    
+        InitializeInventory(identifier..":"..owner, {
+            maxweight = base.maxweight,
+            slots = base.slots,
+            label = base.label,
+            owner = owner
+        })
+    
+        inventory = GetInventory(identifier..":"..owner)
     end
 
     local invId = ""
